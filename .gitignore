@@ -1,0 +1,5 @@
+editor/web/
+editor/frontend/node_modules/
+blog
+.env
+.DS_Store
