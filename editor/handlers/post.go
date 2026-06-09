@@ -2,7 +2,10 @@ package handlers
 
 import (
 	"blog/store"
+	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -10,18 +13,19 @@ import (
 )
 
 type PostHandler struct {
-	s *store.Store
+	s        *store.Store
+	mediaDir string
 }
 
-func NewPostHandler(s *store.Store) *PostHandler {
-	return &PostHandler{s: s}
+func NewPostHandler(s *store.Store, mediaDir string) *PostHandler {
+	return &PostHandler{s: s, mediaDir: mediaDir}
 }
 
 type postInput struct {
-	Title    string `json:"title" binding:"required"`
-	Summary  string `json:"summary"`
-	Content  string `json:"content"`
-	Category string `json:"category"`
+	Title      string `json:"title" binding:"required"`
+	Summary    string `json:"summary"`
+	Content    string `json:"content"`
+	CoverImage string `json:"cover_image"`
 }
 
 func (h *PostHandler) List(c *gin.Context) {
@@ -38,16 +42,6 @@ func (h *PostHandler) List(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
-	}
-
-	if cat := c.Query("category"); cat != "" {
-		filtered := posts[:0]
-		for _, p := range posts {
-			if p.Category == cat {
-				filtered = append(filtered, p)
-			}
-		}
-		posts = filtered
 	}
 
 	if kw := strings.ToLower(c.Query("q")); kw != "" {
@@ -100,7 +94,7 @@ func (h *PostHandler) Create(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	p, err := h.s.Create(input.Title, input.Summary, input.Content, input.Category)
+	p, err := h.s.Create(input.Title, input.Summary, input.Content, input.CoverImage)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -119,7 +113,7 @@ func (h *PostHandler) Update(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	p, err := h.s.Update(uint(id), input.Title, input.Summary, input.Content, input.Category)
+	p, err := h.s.Update(uint(id), input.Title, input.Summary, input.Content, input.CoverImage)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
 		return
@@ -137,5 +131,6 @@ func (h *PostHandler) Delete(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "not found"})
 		return
 	}
+	os.RemoveAll(filepath.Join(h.mediaDir, fmt.Sprintf("%d", id)))
 	c.Status(http.StatusNoContent)
 }

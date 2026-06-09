@@ -51,7 +51,7 @@ function onPaginationChange() {
 }
 
 function fmt(s: string) {
-  return new Date(s).toLocaleDateString('zh-CN', { year: 'numeric', month: 'short', day: 'numeric' })
+  return new Date(s).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
 }
 
 onMounted(load)
@@ -88,13 +88,6 @@ onMounted(load)
       <el-table-column label="Title" min-width="220">
         <template #default="{ row }">
           <RouterLink :to="`/posts/${row.id}`" class="post-link">{{ row.title }}</RouterLink>
-        </template>
-      </el-table-column>
-
-      <el-table-column label="Category" width="150">
-        <template #default="{ row }">
-          <el-tag v-if="row.category" size="small" effect="light" round>{{ row.category }}</el-tag>
-          <span v-else class="text-muted">—</span>
         </template>
       </el-table-column>
 

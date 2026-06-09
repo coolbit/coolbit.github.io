@@ -3,8 +3,10 @@ package handlers
 import (
 	"blog/publisher"
 	"blog/store"
+	"log"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 
 	"github.com/gin-gonic/gin"
@@ -24,6 +26,11 @@ func (h *PublishHandler) Publish(c *gin.Context) {
 	outDir := os.Getenv("PUBLISH_DIR")
 	if outDir == "" {
 		outDir = ".."
+	}
+
+	if err := h.s.RerenderAll(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "rerender: " + err.Error()})
+		return
 	}
 
 	posts, err := h.s.All()
@@ -62,5 +69,13 @@ func (h *PublishHandler) Publish(c *gin.Context) {
 	}
 
 	abs, _ := filepath.Abs(outDir)
+
+	cmd := exec.Command("npx", "pagefind", "--site", abs, "--output-subdir", "_pagefind", "--glob", "posts/*.html")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		log.Printf("pagefind: %v", err)
+	}
+
 	c.JSON(http.StatusOK, gin.H{"dir": abs, "count": len(posts)})
 }

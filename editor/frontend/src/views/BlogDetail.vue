@@ -16,7 +16,7 @@ onMounted(async () => {
 })
 
 function fmt(s: string) {
-  return new Date(s).toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' })
+  return new Date(s).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
 }
 </script>
 
@@ -34,9 +34,6 @@ function fmt(s: string) {
         <article class="post-detail">
           <div class="post-meta-row">
             <span class="post-date">{{ fmt(post.created_at) }}</span>
-            <el-tag v-if="post.category" size="small" effect="light" round>
-              {{ post.category }}
-            </el-tag>
           </div>
 
           <h1 class="post-title">{{ post.title }}</h1>

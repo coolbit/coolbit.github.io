@@ -6,7 +6,7 @@ const http = axios.create({ baseURL: '/api' })
 export interface PostsQuery {
   page?: number
   page_size?: number
-  category?: string
+
   q?: string
 }
 

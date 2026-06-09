@@ -14,11 +14,17 @@ import (
 
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/extension"
+	highlighting "github.com/yuin/goldmark-highlighting/v2"
 	htmlr "github.com/yuin/goldmark/renderer/html"
 )
 
 var gm = goldmark.New(
-	goldmark.WithExtensions(extension.GFM),
+	goldmark.WithExtensions(
+		extension.GFM,
+		highlighting.NewHighlighting(
+			highlighting.WithStyle("monokai"),
+		),
+	),
 	goldmark.WithRendererOptions(htmlr.WithUnsafe()),
 )
 
@@ -29,13 +35,13 @@ func renderMarkdown(src string) template.HTML {
 }
 
 type Post struct {
-	ID        uint      `json:"id"`
-	Title     string    `json:"title"`
-	Summary   string    `json:"summary"`
-	Category  string    `json:"category"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-	Content   string    `json:"content"`
+	ID         uint      `json:"id"`
+	Title      string    `json:"title"`
+	Summary    string    `json:"summary"`
+	CoverImage string    `json:"cover_image,omitempty"`
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
+	Content    string    `json:"content"`
 }
 
 type Store struct {
@@ -56,7 +62,7 @@ func (s *Store) path(id uint) string {
 // postTpl renders the published HTML. Post metadata is embedded in a JSON
 // script tag so the CMS can read it back without a separate source file.
 var postTpl = template.Must(template.New("post").Parse(`<!DOCTYPE html>
-<html lang="zh">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -73,8 +79,8 @@ var postTpl = template.Must(template.New("post").Parse(`<!DOCTYPE html>
 </header>
 <main class="container">
 <article class="post-detail">
+  {{if .Post.CoverImage}}<img src="{{.Post.CoverImage}}" class="cover-img" alt="">{{end}}
   <div class="post-meta">
-    {{if .Post.Category}}<span class="cat">{{.Post.Category}}</span>{{end}}
     <span class="date">{{.Post.CreatedAt.Format "January 2, 2006"}}</span>
   </div>
   <h1 class="detail-title">{{.Post.Title}}</h1>
@@ -182,21 +188,21 @@ func (s *Store) Get(id uint) (*Post, error) {
 	return parse(data)
 }
 
-func (s *Store) Create(title, summary, content, category string) (*Post, error) {
+func (s *Store) Create(title, summary, content, coverImage string) (*Post, error) {
 	now := time.Now()
 	p := &Post{
-		ID:        s.nextID(),
-		Title:     title,
-		Summary:   summary,
-		Content:   content,
-		Category:  category,
-		CreatedAt: now,
-		UpdatedAt: now,
+		ID:         s.nextID(),
+		Title:      title,
+		Summary:    summary,
+		Content:    content,
+		CoverImage: coverImage,
+		CreatedAt:  now,
+		UpdatedAt:  now,
 	}
 	return p, s.write(p)
 }
 
-func (s *Store) Update(id uint, title, summary, content, category string) (*Post, error) {
+func (s *Store) Update(id uint, title, summary, content, coverImage string) (*Post, error) {
 	p, err := s.Get(id)
 	if err != nil {
 		return nil, err
@@ -204,7 +210,7 @@ func (s *Store) Update(id uint, title, summary, content, category string) (*Post
 	p.Title = title
 	p.Summary = summary
 	p.Content = content
-	p.Category = category
+	p.CoverImage = coverImage
 	p.UpdatedAt = time.Now()
 	return p, s.write(p)
 }
@@ -213,16 +219,18 @@ func (s *Store) Delete(id uint) error {
 	return os.Remove(s.path(id))
 }
 
-func (s *Store) Categories() []string {
-	posts, _ := s.All()
-	seen := map[string]bool{}
-	var cats []string
-	for _, p := range posts {
-		if p.Category != "" && !seen[p.Category] {
-			seen[p.Category] = true
-			cats = append(cats, p.Category)
+// RerenderAll rewrites every post HTML using the current template.
+// Called by Publish to keep all posts in sync with template changes.
+func (s *Store) RerenderAll() error {
+	posts, err := s.All()
+	if err != nil {
+		return err
+	}
+	for i := range posts {
+		if err := s.write(&posts[i]); err != nil {
+			return err
 		}
 	}
-	sort.Strings(cats)
-	return cats
+	return nil
 }
+

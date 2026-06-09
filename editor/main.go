@@ -25,12 +25,18 @@ func main() {
 		log.Fatalf("store: %v", err)
 	}
 
+	mediaDir := os.Getenv("MEDIA_DIR")
+	if mediaDir == "" {
+		mediaDir = "../media"
+	}
+
 	r := gin.Default()
 	r.Use(cors.Default())
 
-	ph := handlers.NewPostHandler(s)
-	ch := handlers.NewCategoryHandler(s)
+	ph := handlers.NewPostHandler(s, mediaDir)
 	pub := handlers.NewPublishHandler(s)
+	uh := handlers.NewUploadHandler(mediaDir)
+	mh := handlers.NewMediaListHandler(mediaDir)
 
 	posts := r.Group("/api/posts")
 	{
@@ -41,8 +47,10 @@ func main() {
 		posts.DELETE("/:id", ph.Delete)
 	}
 
-	r.GET("/api/categories", ch.List)
+	r.POST("/api/upload/:id", uh.Upload)
+	r.GET("/api/media/:id", mh.List)
 	r.POST("/api/publish", pub.Publish)
+	r.Static("/media", mediaDir)
 
 	r.NoRoute(spaHandler("web"))
 
@@ -53,18 +61,28 @@ func main() {
 	r.Run(":" + port)
 }
 
-// buildFrontend runs `npm run build` inside ./frontend if web/index.html is absent.
+// buildFrontend installs npm deps (if needed) and builds the frontend when web/index.html is absent.
 func buildFrontend() {
 	if _, err := os.Stat("web/index.html"); err == nil {
 		return
 	}
+	if _, err := os.Stat("frontend/node_modules"); err != nil {
+		log.Println("frontend: installing dependencies...")
+		install := exec.Command("npm", "install")
+		install.Dir = "frontend"
+		install.Stdout = os.Stdout
+		install.Stderr = os.Stderr
+		if err := install.Run(); err != nil {
+			log.Fatalf("npm install failed: %v", err)
+		}
+	}
 	log.Println("frontend: building...")
-	cmd := exec.Command("npm", "run", "build")
-	cmd.Dir = "frontend"
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err != nil {
-		log.Fatalf("frontend build failed: %v", err)
+	build := exec.Command("npm", "run", "build")
+	build.Dir = "frontend"
+	build.Stdout = os.Stdout
+	build.Stderr = os.Stderr
+	if err := build.Run(); err != nil {
+		log.Fatalf("npm run build failed: %v", err)
 	}
 }
 
