@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"fmt"
 	"html/template"
+	"strings"
 )
 
 type IndexData struct {
@@ -190,3 +191,18 @@ main{padding:3rem 0}
 .page-btn.disabled{opacity:.35;pointer-events:none;cursor:default}
 .page-info{font-size:.875rem;color:#bbb;min-width:60px;text-align:center}
 `
+
+// GenerateSitemap returns a sitemap.xml listing the homepage and all post pages.
+func GenerateSitemap(posts []store.Post, baseURL string) string {
+	baseURL = strings.TrimRight(baseURL, "/")
+	var b strings.Builder
+	b.WriteString(`<?xml version="1.0" encoding="UTF-8"?>` + "\n")
+	b.WriteString(`<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">` + "\n")
+	fmt.Fprintf(&b, "  <url><loc>%s/</loc><changefreq>weekly</changefreq></url>\n", baseURL)
+	for _, p := range posts {
+		fmt.Fprintf(&b, "  <url><loc>%s/posts/%d.html</loc><lastmod>%s</lastmod></url>\n",
+			baseURL, p.ID, p.UpdatedAt.Format("2006-01-02"))
+	}
+	b.WriteString("</urlset>\n")
+	return b.String()
+}

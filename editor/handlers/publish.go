@@ -27,6 +27,10 @@ func (h *PublishHandler) Publish(c *gin.Context) {
 	if outDir == "" {
 		outDir = ".."
 	}
+	siteURL := os.Getenv("SITE_URL")
+	if siteURL == "" {
+		siteURL = "https://coolbit.github.io"
+	}
 
 	if err := h.s.RerenderAll(); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "rerender: " + err.Error()})
@@ -40,7 +44,10 @@ func (h *PublishHandler) Publish(c *gin.Context) {
 	}
 
 	type job struct{ path, content string }
-	jobs := []job{{"style.css", publisher.StyleCSS}}
+	jobs := []job{
+		{"style.css", publisher.StyleCSS},
+		{"sitemap.xml", publisher.GenerateSitemap(posts, siteURL)},
+	}
 
 	for _, pg := range publisher.PaginateIndex(posts, postsPerPage) {
 		html, err := publisher.RenderIndex(pg.Data)
